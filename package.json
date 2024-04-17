@@ -1,0 +1,20 @@
+{
+  "name": "stock-alpaca-tradingview-bot",
+  "version": "0.1.3",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@alpacahq/alpaca-trade-api": "^3.0.1",
+    "croner": "^8.0.2",
+    "express": "^4.19.2",
+    "node-fetch": "^2.7.0",
+    "winston": "^3.13.0"
+  }
+}

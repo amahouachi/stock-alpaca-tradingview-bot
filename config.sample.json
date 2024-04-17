@@ -1,0 +1,41 @@
+{
+  "port": 80,
+  "endpoint": "/alpaca-bot-tv-webhook-382893",
+  "reloadPositionsCronExpression": "59 * * * *",
+  "priceSource": "alpaca",
+  "account": {
+    "alpaca": {
+      "paper": true,
+      "keyId": "",
+      "secretKey": ""
+    },
+    "twelveData": {
+      "baseUrl": "https://api.twelvedata.com",
+      "apiKey": "",
+      "prepost": false
+    }
+  },
+  "defaults": {
+    "entryOffset": 0.1,
+    "exitOffset": 0.1,
+    "takeProfit": 0,
+    "stopLoss": 0
+  },
+  "portfolio": {
+    "NVDA": {"allocation": 20,
+      "entryOffset": 10, "exitOffset": 10
+    },
+    "AMD": {"allocation": 20, "takeProfit": 30, "stopLoss": 25, "exitOffset": 10},
+    "TQQQ": {"allocation": 15, "takeProfit": 30, "stopLoss": 25},
+    "NFLX": {"allocation": 15, "active":  false},
+    "AMZN": {"allocation": 15},
+    "META": {"allocation": 15},
+    "AVGO": {"allocation": 15},
+    "AAPL": {"allocation": 10},
+    "MSFT": {"allocation": 10},
+    "TSLA": {"allocation": 10},
+    "TMUS": {"allocation": 10},
+    "AMAT": {"allocation": 10}
+  }
+}
+
