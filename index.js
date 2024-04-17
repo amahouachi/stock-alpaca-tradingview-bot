@@ -299,7 +299,7 @@ async function processSignal(signal){
   }
 }
 
-Cron(config.reloadPositionsCronExpression, async () => {
+Cron(config.protectPositionsCronExpression, async () => {
   await loadAccount();
   await loadPositions();
   await protectPositions();

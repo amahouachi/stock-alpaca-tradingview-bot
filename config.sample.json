@@ -1,7 +1,7 @@
 {
   "port": 80,
   "endpoint": "/alpaca-bot-tv-webhook-382893",
-  "reloadPositionsCronExpression": "59 * * * *",
+  "protectPositionsCronExpression": "59 * * * *",
   "priceSource": "alpaca",
   "account": {
     "alpaca": {
