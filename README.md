@@ -1,5 +1,3 @@
-**!!!! IMPORTANT NOTE !!!! THIS IS WORK IN PROGRESS AND NOT TESTED YET !! DO NOT USE IN PRODUCTION!!**
-
 This is a stock trading bot that receives signals from TradingView and executes
 orders using alpaca javascript library. ETFs are also supported.
 
