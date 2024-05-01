@@ -6,84 +6,103 @@ orders using alpaca javascript library. ETFs are also supported.
 ## Usage
 
 ```
-git clone https://github.com/amahouachi/stock-alpaca-tradingview-bot
-cd stock-alpaca-tradingview-bot
-cp config.sample.json config.json
-vi config.json
+> git clone https://github.com/amahouachi/stock-alpaca-tradingview-bot
+> cd stock-alpaca-tradingview-bot
+> tsc
+> npm install
+> cp config.sample.json dist/config.json
+> vi dist/config.json
 //define your api keys, portfolio allocation and other options
 //:x!
-node index.js
+> node dist/src/bot.js
+//or if you are using pm2
+> pm2 start dist/src/bot.js
 ```
 
 ## How it works
 
-The idea is to let TradingView do the heavy lifting technical analysis and
-whatever calculations are needed, generate buy/sell signals and send them using alert
-webhooks to this bot. The bot then decides to execute buy/sell orders based
-on current positions and configuration.
+This is a signal execution bot. It does not technical analysis and is not 
+capable of generating buy/sell signals on its own.
 
-So let's start with TradingView side, then we will go to the bot's side.
+Signals are generated in TradingView and sent to the bot for execution.
 
-## One Signal, multiple symbols
+This bot is long-only so it will not open short positions. Sell signals
+will be ignored for symbols for which there are no open long position.
 
-If your strategy works well on several symbols with the same parameters, 
-then you can provide all the relevent symbols in the signal, the "main" symbol
-on which the strategy is running, and "related" symbols.
-You need to provide the limit price for each included symbol. 
-Current price data of the "main" symbol is available in variables like
-`close`, `high` etc.
-You can use `request.security()` function to get the price data for "related" symbols.
+## Signal
 
-For example, if your strategy works on 10 symbols, you can setup one alert
-and include the 10 symbols inside the signal instead of setting up 10 alerts
-with one symbol per signal.
+A signal is a suggestion to buy or sell one or several symbols using
+a specific order type.
 
-However, your signal must be independent from the "main" symbol order execution.
-Otherwise, your strategy will produce inconsistent signals which are correct
-for the "main" symbol but might be wrong for other symbols.
+If a strategy generates signals independently from the positions
+opened/closed for the symbol on which it is applied then several
+symbols can be included in one signal.
 
-For example, the condition `if strategy.position_avg_size>0` is only relevent
-for the "main" symbol on which the strategy is executed, not for "related" symbols. 
-So don't condition order execution with this.
 
-Of course, if your strategy signals depend on order executions of the "main"
-symbol, or if parameters are different between symbols, you can provide
-an array with a single symbol and setup one alert per symbol.
-
-## Signal format
-
-Two signal types are supported : buy limit and sell limit.
-
-Take profit and stop loss will be managed by the bot based on its configuration.
+### Spec
 
 ```
 {
-  "action": "buy-limit" | "sell-limit",
+  "side": "buy" | "sell",
+  "type": "market" | "limit" | "stop" | "stop_limit",
   "symbols": [symbol1, symbol2, symbol3, ...],
   "prices": [symbol1_close, symbol2_close, symbol3_close, ...]
 }
 ```
+### Rules
 
-## Example signals
-### Buy Limit
+* `symbols` and `prices` arrays must have the same length
+* `prices` is mandatory unless `type` is `market`
+
+
+### Example with one symbol
+**Buy Limit**
 ```
 {
-  "action": "buy-limit",
-  "symbols": ["NVDA", "AAPL", "AMZN"],
-  "prices": [800.05, 160.33, 135.87]
+  "side": "buy",
+  "type": "limit",
+  "symbols": ["NVDA"],
+  "prices": [800.05]
 }
 ```
 
-### Sell Limit
+**Sell Stop**
 ```
 {
-  "action": "sell-limit",
-  "symbols": ["NVDA", "AAPL", "AMZN"],
-  "prices": [800.05, 160.33, 135.87]
+  "side": "sell",
+  "type": "stop",
+  "symbols": ["AMD"],
+  "prices": [130.94]
 }
 ```
 
-## Example pine script to generate signals
+### Example with muliple symbols
+**Buy Stop-Limit**
+```
+{
+  "side": "buy",
+  "type": "stop_limit",
+  "symbols": ["NVDA", "AMD", "GOOG"],
+  "prices": [800.05, 160.45, 200.15]
+}
+```
+
+**Sell Market**
+```
+{
+  "side": "sell",
+  "type": "market",
+  "symbols": ["NVDA", "AMD", "GOOG"]
+}
+```
+
+## How to get symbols prices
+
+In pinescript, one strategy can only be executed on one symbol at a time.
+
+You can use `request.security()` function to get the price data for other symbols.
+
+## Example pinescript to generate signals
 ```
 //@version=5
 strategy("my-strategy",margin_long = 20)
@@ -118,7 +137,18 @@ if longCondition
 ## Signal Execution
 
 The bot should listen on port 80 to be able to receive signals from TradingView
-via webhook. Once a signal is received, the bot loads account and position information
+via webhook. 
+
+If you can't listen on port 80 because of root privileges, one way you can do
+is (on debian):
+```
+sudo apt-get install libcap2-bin
+sudo setcap cap_net_bind_service=+ep /path/to/node
+```
+
+Other solutions exist, just google it.
+
+Once a signal is received, the bot retrieves your account and positions information
 from Alpaca server and determines for each symbol if an order needs to be executed.
 
 If a buy signal is received but there is already an open position for a symbol,
@@ -126,23 +156,16 @@ the signal is simply ignored for that symbol.
 If a sell signal is received but there is no open position for a symbol, the signal
 is simply ignored for that symbol.
 
-The bot then calculates the limit price, based on the price provided 
-by the "price source"
-and the `entryOffset` or `exitOffset` defined in the configuration.
-The "price source" is defined in the configuration setting `priceSource` and
-can be :
-* `signal` : the bot will retrieve current prices from the signal.
-* `alpaca` : the bot will retrieve current prices using alpaca api. Make
-sure to have a paid subscription otherwise retrieved prices may not be the
-current ones.
-* `twelveData` : the bot will retrieve current prices using twelveData api. With their free tier,
-you can get the last prices if in regular trading hours. But you are limited to
-x number of requests per minute and y number of requests per day. Read their documentation
-for more details.
+The bot then calculates the limit price, stop price and/or the stop-limit price, 
+based on the price provided in the `prices` field in the signal and the offsets
+defined in the configuration file : `entryLimitOffset`, `exitLimitOffset`,
+`entryStopOffset`, `exitStopOffset`, `entryStopLimitOffset` and `exitStopLimitOffset`.
 
+These settings must be defined in the `defaults` section, to be applied to all symbols, 
+and can be overridden at the symbol level.
 
-If this is a buy order, it also calculates the quantity to buy based on the
-account's capital and the `allocation` defined for the given symbol in configuration.
+If this is a buy order, the bot also calculates the quantity to buy based on the
+account's capital and the default `allocation` or the one defined for the given symbol if any.
 If it is a sell order, the quantity to sell is retrieved from the position.
 
 The capital of an account at a given time is the value of cash + the buying cost
@@ -152,18 +175,44 @@ of each open position.
 
 TakeProfit and StopLoss orders are completely managed in the bot. They are not
 created at the same time when creating buy orders. Instead, a setting in the
-configuration `protectPositionsCronExpression` sets the time at which the bot
-will, for each open position, and if not already done, create an OCO order to
-take profit or stop loss.
+configuration `tpSlCron` sets the time at which the bot
+will, for each open position, and if not already done, create a takeProfit and/or StopLoss orders.
 
 You define the default percentages of profit and loss for all symbols 
 in the `defaults` section. Every symbol will use these settings unless
-you override them in the symbol's setting. See example below.
+you override them in the symbol's settings. See example below.
 
-If takeProfit and stopLoss are set to zero, no order will be created.
+If both takeProfit and stopLoss are zero, no order will be created.
+If takeProfit is not zero and stopLoss is zero then a `limit` order will be created.
+If takeProfit is zero and stopLoss is not zero then a `stop` order will be created.
+If both are non-zero, an OCO order will be created.
 
-If takeProfit is not zero then stopLoss must not be zero. And vice versa.
-Meaning, either you set them to zero/zero or non-zero/non-zero.
+TakeProfit and StopLoss prices are caluclates based on the corresponding position's
+entryPrice.
+```
+takeProfitPrice= entryPrice*(1+takeProfitOffset/100)
+stopLossPrice= entryPrice*(1-takeProfitOffset/100)
+```
+
+## extended_hours and time_in_force
+
+Alpaca has few rules related to trading in extended hours.
+`time_in_force` must be set to `day` and order needs to be `limit`.
+
+The bot will always set `extended_hours` to `true` and `time_in_force`
+to `day` for all orders except for takeProfit and stopLoss orders,
+their `time_in_force` will be set to `gtc`.
+
+Note that `day` orders will expire at the end of the day if not filled. You need to 
+take this into account and send again the signal the next day if you are still
+interested in executing the expired signal.
+
+## Negative offsets
+
+Negative offsets for entry and exit are supported. You can set for example
+`entryLimitOffset` to -0.1 and the limit price will be currentPrice+0.1%.
+
+This will buy at the best asks which are less than currentPrice+0.1%.
 
 ## Example Configuration
 
@@ -171,23 +220,19 @@ Meaning, either you set them to zero/zero or non-zero/non-zero.
 {
   "port": 80, // Must be 80 for TradingView alert webhook
   "endpoint": "/my-custom-webhook-endpoint", // the webhook endpoint
-  "protectPositionsCronExpression": "*/5 * * * *", // time for tp/sl order creation
-  "priceSource": "alpaca", // signal or alpaca or twelveData
+  "tpSlCron": "*/5 * * * *", // time for tp/sl order creation, here every 5 minutes
   "account": {
-    "alpaca": {
-      "paper": true,
-      "keyId": "api key",
-      "secretKey": "secret key"
-    },
-    "twelveData": {
-      "baseUrl": "https://api.twelvedata.com",
-      "apiKey": "api key",
-      "prepost": false // get price during extended trading hours. only if you have a paid subscription
-    }
+    "paper": true,
+    "keyId": "api key",
+    "secretKey": "secret key"
   },
   "defaults": {
-    "entryOffset": 0.1, // By default, buy limit price is price-0.1%
-    "exitOffset": 0.1,  // By default, sell limit price is price+0.1%
+    "entryLimitOffset": 0.1, // By default, buy limit price is price-0.1%
+    "exitLimitOffset": 0.1,  // By default, sell limit price is price+0.1%
+    "entryStopOffset": 0.1, // By default, buy stop price is price+0.1%
+    "exitStopOffset": 0.1,  // By default, sell stop price is price-0.1%
+    "entryStopLimitOffset": 0.1, // This is relative to stopPrice !! By default, buy stop limit price is stopPrice-0.1%
+    "exitStopLimitOffset": 0.1,  // This is relative to stopPrice !! By default, sell stop limit price is stopPrice+0.1%
     "takeProfit": 10, // By default, open a takeProfit at entryPrice+10%
     "stopLoss": 5 // By default, open a stopLoss at entryPrice-5%
   },
