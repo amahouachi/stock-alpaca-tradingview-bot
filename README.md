@@ -14,9 +14,9 @@ orders using alpaca javascript library. ETFs are also supported.
 > vi dist/config.json
 //define your api keys, portfolio allocation and other options
 //:x!
-> node dist/src/bot.js
+> node dist/bot.js
 //or if you are using pm2
-> pm2 start dist/src/bot.js
+> pm2 start dist/bot.js
 ```
 
 ## How it works
@@ -125,7 +125,7 @@ for [index, symbol] in symbols
     buyCmd:= buyCmd+'"'+symbol+'"'
     if index<array.size(symbols)-1
         buyCmd:= buyCmd + ','
-buyCmd:= buyCmd + '],"action":"buy-limit", "prices": ['+prices.join(",")+']}'
+buyCmd:= buyCmd + '],"side":"buy", "type": "limit ,"prices": ['+prices.join(",")+']}'
 if longCondition
   alert(buyCmd)
 
