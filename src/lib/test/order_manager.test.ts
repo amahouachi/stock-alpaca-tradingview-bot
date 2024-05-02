@@ -286,5 +286,6 @@ describe('generate sell order', () => {
     expect(alpacaOrder.stop_loss?.stop_price).toEqual(`${order.stopPrice}`);
     expect(alpacaOrder.take_profit?.limit_price).toEqual(`${order.limitPrice}`);
     expect(alpacaOrder.side).toEqual('sell');
+    expect(alpacaOrder.order_class).toEqual('oco');
   });
 });
