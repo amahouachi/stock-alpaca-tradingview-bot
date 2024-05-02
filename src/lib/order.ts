@@ -93,6 +93,6 @@ export class SellOCOOrder extends Order{
     super(symbol, OrderSides.SELL, OrderTypes.OCO, qty, limitPrice, stopPrice);
   }
   toAlpacaOrder(): AlpacaOrder {
-    return {...super.toAlpacaOrder(), type: 'limit', take_profit: {limit_price: `${this.limitPrice}`}, stop_loss: {stop_price: `${this.stopPrice}`}, time_in_force: 'gtc'};
+    return {...super.toAlpacaOrder(), type: 'limit', take_profit: {limit_price: `${this.limitPrice}`}, stop_loss: {stop_price: `${this.stopPrice}`}, order_class: 'oco', time_in_force: 'gtc'};
   }
 }
